@@ -369,6 +369,11 @@ class MoltenKernel:
         if self.selected_cell is not None:
             self._show_selected(self.selected_cell)
 
+        if self.options.virt_status_on_header:
+            for span, output in self.outputs.items():
+                output.show_status_on_header(span.begin)
+
+
         if self.options.virt_text_output:
             for span, output in self.outputs.items():
                 output.show_virtual_output(span.end)

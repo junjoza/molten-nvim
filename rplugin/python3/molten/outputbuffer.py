@@ -22,6 +22,7 @@ class OutputBuffer:
     display_virt_lines: Optional[DynamicPosition]
     extmark_namespace: int
     virt_text_id: Optional[int]
+    virt_text_status_id: Optional[int]
     displayed_status: OutputStatus
 
     options: MoltenOptions
@@ -38,6 +39,7 @@ class OutputBuffer:
         self.display_virt_lines = None
         self.extmark_namespace = extmark_namespace
         self.virt_text_id = None
+        self.virt_text_status_id = None
         self.displayed_status = OutputStatus.HOLD
 
         self.options = options
@@ -142,6 +144,9 @@ class OutputBuffer:
     def clear_virt_output(self, bufnr: int) -> None:
         if self.virt_text_id is not None:
             self.nvim.funcs.nvim_buf_del_extmark(bufnr, self.extmark_namespace, self.virt_text_id)
+
+        if self.virt_text_status_id is not None:
+            self.nvim.funcs.nvim_buf_del_extmark(bufnr, self.extmark_namespace, self.virt_text_status_id)
         # clear the image too
         redraw = False
         for chunk in self.output.chunks:
@@ -201,6 +206,31 @@ class OutputBuffer:
 
         lines.insert(0, self._get_header_text(self.output))
         return lines, len(lines) - 1 + virtual_lines
+
+    def show_status_on_header(self, anchor: Position) -> None:
+        if self.displayed_status == OutputStatus.DONE and self.virt_text_status_id is not None:
+            return
+
+        buf = self.nvim.buffers[anchor.bufno]
+
+        if self.virt_text_status_id is not None:
+            self.nvim.funcs.nvim_buf_del_extmark(
+                anchor.bufno, self.extmark_namespace, self.virt_text_status_id
+            )
+            self.virt_text_status_id = None
+
+        text = f"-> {self._get_header_text(self.output)}"
+        self.virt_text_status_id = buf.api.set_extmark(
+            self.extmark_namespace,
+            anchor.lineno - 1,
+            0,
+            {
+                "virt_text": [[text, self.options.hl.virtual_status]],
+                "virt_text_pos": "eol",
+            }
+        )
+        self.canvas.present()
+
 
     def show_virtual_output(self, anchor: Position) -> None:
         if self.displayed_status == OutputStatus.DONE and self.virt_text_id is not None:

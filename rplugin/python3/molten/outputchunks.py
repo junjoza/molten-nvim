@@ -18,6 +18,7 @@ from pynvim import Nvim
 
 from molten.images import Canvas
 from molten.options import MoltenOptions
+from molten.options import HL
 from molten.utils import notify_error
 
 
@@ -192,6 +193,7 @@ class Output:
     old: bool
     start_time: datetime | None
     end_time: datetime | None
+    hl: str
 
     _should_clear: bool
 

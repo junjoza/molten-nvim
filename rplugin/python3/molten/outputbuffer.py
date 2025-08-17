@@ -59,15 +59,20 @@ class OutputBuffer:
         match output.status:
             case OutputStatus.HOLD:
                 status = "* On Hold"
+                output.hl = self.options.hl.border_norm
             case OutputStatus.DONE:
                 if output.success:
-                    status = "✓ Done"
+                    status = "✓"
+                    output.hl = self.options.hl.border_succ
                 else:
-                    status = "✗ Failed"
+                    status = "✗"
+                    output.hl = self.options.hl.border_fail
             case OutputStatus.RUNNING:
-                status = "... Running"
+                status = "↻"
+                output.hl = self.options.hl.border_norm
             case OutputStatus.NEW:
                 status = ""
+                output.hl = self.options.hl.border_succ
             case _:
                 raise ValueError("bad output.status: %s" % output.status)
 
@@ -237,7 +242,7 @@ class OutputBuffer:
             return [
                 text 
                 for mark in marks 
-                for text in mark[2].get("virt_text", [])
+                for text in mark[2].get("conceal", [])
             ]
         except Exception:
             return []
@@ -247,6 +252,7 @@ class OutputBuffer:
             return
 
         buf = self.nvim.buffers[anchor.bufno]
+        line = anchor.lineno
 
         if self.virt_text_status_id is not None:
             self.nvim.funcs.nvim_buf_del_extmark(
@@ -254,20 +260,20 @@ class OutputBuffer:
             )
             self.virt_text_status_id = None
 
-        existing = self.get_existing_virt_text(anchor.bufno, anchor.lineno)
-        text = f"-> {self._get_header_text(self.output)}"
+        existing = self.get_existing_virt_text(anchor.bufno, line)
+        text = f"{self._get_header_text(self.output)}"
                 # Prepare new text chunk (with space separator if needed)
-        new_chunk = (f" {text}" if existing else text, self.options.hl.virtual_status)
+        new_chunk = (f" {text}" if existing else text, self.output.hl)
         self.virt_text_status_id = buf.api.set_extmark(
             self.extmark_namespace,
-            anchor.lineno - 1,
+            line,
             0,
             {
-                "virt_text": existing + [new_chunk],
-                "virt_text_pos": "eol",
+                "virt_text": [new_chunk] + existing,
+                "virt_text_pos": "inline",
                 "hl_mode": "combine",
-                "right_gravity": False,
                 "conceal": '',
+                "virt_text_win_col": 100 - len(text),
             }
         )
         self.canvas.present()

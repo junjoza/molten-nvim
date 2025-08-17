@@ -393,6 +393,10 @@ class MoltenKernel:
             for span, output in self.outputs.items():
                 output.show_virtual_output(span.end)
 
+        if self.options.virt_status_on_header:
+            for span, output in self.outputs.items():
+                output.show_status_on_header(span.begin)
+
         self.canvas.present()
 
         self.updating_interface = False

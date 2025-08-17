@@ -192,6 +192,7 @@ class Output:
     old: bool
     start_time: datetime | None
     end_time: datetime | None
+    hl: str
 
     _should_clear: bool
 

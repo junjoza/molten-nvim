@@ -17,6 +17,7 @@ class HL:
     foot = "MoltenOutputFooter"
     cell = "MoltenCell"
     virtual_text = "MoltenVirtualText"
+    virtual_status = "MoltenVirtualStatus"
 
     defaults = {
         border_norm: "FloatBorder",
@@ -27,6 +28,7 @@ class HL:
         foot: "FloatFooter",
         cell: "CursorLine",
         virtual_text: "Comment",
+        virtual_status: "Operator"
     }
 
 
@@ -62,6 +64,7 @@ class MoltenOptions:
     virt_lines_off_by_1: bool
     virt_text_max_lines: int
     virt_text_output: bool
+    virt_status_on_header: bool
     wrap_output: bool
     nvim: Nvim
     hl: HL
@@ -103,6 +106,7 @@ class MoltenOptions:
             ("molten_virt_text_max_lines", 12),
             ("molten_virt_text_output", False),
             ("molten_wrap_output", False),
+            ("molten_virt_status_on_header", False),
         ]
         # fmt: on
 

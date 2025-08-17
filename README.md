@@ -1,5 +1,10 @@
 # Molten
 
+> [!WARNING]
+> Molten is a remote plugin [read
+> this](https://github.com/benlubas/molten-nvim/blob/main/docs/Not-So-Quick-Start-Guide.md#a-note-on-remote-plugins)
+> if you don't know what that means
+
 Molten is a fork of [Magma](https://www.github.com/dccsillag/magma-nvim), a plugin for running code
 interactively with the jupyter kernel. Molten provides an excellent repl-like experience, and an
 incredible notebook-like experience in neovim.
@@ -17,7 +22,7 @@ https://github.com/benlubas/molten-nvim/assets/56943754/17ae81c0-306f-4496-bce8-
 - Send code from the same buffer to multiple kernels
 - Supports any language with a Jupyter Kernel (in theory, they haven't all been tested)
 - Python virtual environment support
-- Import and Export outputs to and from jupyter notebook files
+- Import and Export outputs to and from jupyter notebook files (**does not convert ipynb to plaintext**)
 
 ## Requirements
 
@@ -66,6 +71,10 @@ automatically if there is only one option).
 
 When you execute some code, it will create a _cell_. You can recognize a cell because it will be
 highlighted when your cursor is in it.
+
+> [!NOTE] 
+> A molten cell is **not** a markdown cell. Molten has **no** awareness of the type of file it's
+> running code from. It doesn't need to know.
 
 A cell is delimited using two extmarks (see `:h api-extended-marks`), so each cell will adjust when
 editing text within its boundaries.
@@ -119,7 +128,7 @@ kernel is attached to the buffer. This is configurable with the `molten_auto_ini
 | `MoltenEvaluateOperator`  | `[kernel]`            | Evaluate text selected by the following operator. see [Keybindings](#keybindings) for useage |
 | `MoltenEvaluateArgument`  | `[kernel] code`       | Evaluate given code in the given kernel |
 | `MoltenReevaluateCell`    | none                  | Re-evaluate the active cell (including new code) with the same kernel that it was originally evaluated with |
-| `MoltenDelete`            | none                  | Delete the active cell (does nothing if there is no active cell) |
+| `MoltenDelete`            | `[!]`                 | Delete the active cell (does nothing if there is no active cell). With bang (`!`), deletes all cells in the current buffer |
 | `MoltenShowOutput`        | none                  | Shows the output window for the active cell |
 | `MoltenHideOutput`        | none                  | Hide currently open output window |
 | `MoltenEnterOutput`       | none                  | Move into the active cell's output window. Opens but does not enter the output if it's not open. **must be called with `noautocmd`** (see [Keybindings](#keybindings) for example) |

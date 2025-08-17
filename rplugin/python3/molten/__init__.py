@@ -665,14 +665,17 @@ class Molten:
                 return
         notify_error(self.nvim, f"Unable to find kernel: {kernel}")
 
-    @pynvim.command("MoltenDelete", nargs=0, sync=True)  # type: ignore
+    @pynvim.command("MoltenDelete", nargs=0, sync=True, bang=True)  # type: ignore
     @nvimui  # type: ignore
-    def command_delete(self) -> None:
+    def command_delete(self, bang) -> None:
         molten_kernels = self._get_current_buf_kernels(True)
         assert molten_kernels is not None
 
         for molten in molten_kernels:
-            if molten.selected_cell is not None:
+            if bang:
+                # Delete all cells in current buffer
+                molten.clear_buffer(self.nvim.current.buffer.number)
+            elif molten.selected_cell is not None:
                 molten.delete_current_cell()
                 return
 
@@ -981,3 +984,38 @@ class Molten:
                     self.nvim, self.canvas, molten.extmark_namespace, self.options
                 )
                 break
+
+    @pynvim.command("MoltenToggleVirtual", nargs="0", sync=True, bang=True)  # type: ignore
+    @nvimui  # type: ignore
+    def command_toggle_virtual(self, args: List[Any], bang: bool) -> None:
+        """
+        Toggle the virtual-text output on/off for the cell under the cursor.
+        With a bang (`:MoltenToggleVirtual!`), toggle ALL cells in this buffer.
+        """
+        kernels = self._get_current_buf_kernels(True)
+        assert kernels is not None
+
+        # If called with !, toggle EVERY cell
+        if bang:
+            # if any cell is currently visible, hide all; otherwise show all
+            any_visible = any(
+                outbuf.virt_text_id is not None and not outbuf.virt_hidden
+                for kern in kernels
+                for outbuf in kern.outputs.values()
+            )
+            for kern in kernels:
+                for cell, outbuf in kern.outputs.items():
+                    if any_visible:
+                        outbuf.clear_virt_output(cell.end.bufno)
+                    else:
+                        outbuf.virt_hidden = False
+                        outbuf.show_virtual_output(cell.end)
+            return
+
+        # Otherwise, just toggle the cell under the cursor
+        for kern in kernels:
+            cell = kern._get_selected_span()
+            if cell is not None:
+                outbuf = kern.outputs[cell]
+                outbuf.toggle_virtual_output(cell.end)
+                return

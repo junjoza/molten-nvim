@@ -37,6 +37,7 @@ class OutputBuffer:
         self.display_buf = self.nvim.buffers[self.nvim.funcs.nvim_create_buf(False, True)]
         self.display_win = None
         self.display_virt_lines = None
+        self.virt_hidden: bool = False
         self.extmark_namespace = extmark_namespace
         self.virt_text_id = None
         self.virt_text_status_id = None
@@ -147,6 +148,12 @@ class OutputBuffer:
 
         if self.virt_text_status_id is not None:
             self.nvim.funcs.nvim_buf_del_extmark(bufnr, self.extmark_namespace, self.virt_text_status_id)
+            # …and clear our flag so show_virtual_output can re-add it
+            self.virt_text_id = None
+            # (optional) reset displayed_status so your guard won’t block:
+            # self.displayed_status = OutputStatus.NEW
+            self.virt_hidden = True
+
         # clear the image too
         redraw = False
         for chunk in self.output.chunks:
@@ -155,6 +162,16 @@ class OutputBuffer:
                 redraw = True
         if redraw:
             self.canvas.present()
+
+    def toggle_virtual_output(self, anchor: Position) -> None:
+        if self.virt_hidden:
+            # currently suppressed ⇒ un‐suppress and show
+            self.virt_hidden = False
+            self.show_virtual_output(anchor)
+        else:
+            # currently visible (or default) ⇒ hide and suppress
+            self.clear_virt_output(anchor.bufno)
+            # clear_virtual_output already set virt_hidden=True
 
     def set_win_option(self, option: str, value) -> None:
         if self.display_win:
@@ -165,7 +182,7 @@ class OutputBuffer:
             )
 
     def build_output_text(self, shape, buf: int, virtual: bool) -> Tuple[List[str], int]:
-        lineno = 1 # we add a status line at the top in the end
+        lineno = 1  # we add a status line at the top in the end
         lines_str = ""
         # images are rendered with virtual lines by image.nvim
         virtual_lines = 0
@@ -204,6 +221,10 @@ class OutputBuffer:
         while len(lines) > 0 and lines[-1] == "":
             lines.pop()
 
+        # HACK: add an extra line for snacks image in windows
+        if self.options.image_provider == "snacks.nvim":
+            lines.append("")
+
         lines.insert(0, self._get_header_text(self.output))
         return lines, len(lines) - 1 + virtual_lines
 
@@ -233,6 +254,8 @@ class OutputBuffer:
 
 
     def show_virtual_output(self, anchor: Position) -> None:
+        if self.virt_hidden:
+            return
         if self.displayed_status == OutputStatus.DONE and self.virt_text_id is not None:
             return
         offset = self.calculate_offset(anchor) if self.options.cover_empty_lines else 0
@@ -253,11 +276,12 @@ class OutputBuffer:
         win_row = anchor.lineno + offset
         win_width = win_info["width"] - win_info["textoff"]
         win_height = win_info["height"]
+        last = self.nvim.funcs.line("$")
 
-        if self.options.virt_lines_off_by_1:
+        if self.options.virt_lines_off_by_1 and win_row < last - 1:
             win_row += 1
 
-        if win_row > (last := self.nvim.funcs.line("$")):
+        if win_row > last:
             win_row = last
 
         shape = (

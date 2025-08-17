@@ -228,6 +228,20 @@ class OutputBuffer:
         lines.insert(0, self._get_header_text(self.output))
         return lines, len(lines) - 1 + virtual_lines
 
+    def get_existing_virt_text(self, bufnr: int, lnum: int) -> list:
+        """Returns combined virt_text from all extmarks on the line"""
+        try:
+            marks = self.nvim.api.buf_get_extmarks(
+                bufnr, -1, [lnum, 0], [lnum, -1], {"details": True}
+            )
+            return [
+                text 
+                for mark in marks 
+                for text in mark[2].get("virt_text", [])
+            ]
+        except Exception:
+            return []
+
     def show_status_on_header(self, anchor: Position) -> None:
         if self.displayed_status == OutputStatus.DONE and self.virt_text_status_id is not None:
             return
@@ -240,14 +254,20 @@ class OutputBuffer:
             )
             self.virt_text_status_id = None
 
+        existing = self.get_existing_virt_text(anchor.bufno, anchor.lineno)
         text = f"-> {self._get_header_text(self.output)}"
+                # Prepare new text chunk (with space separator if needed)
+        new_chunk = (f" {text}" if existing else text, self.options.hl.virtual_status)
         self.virt_text_status_id = buf.api.set_extmark(
             self.extmark_namespace,
             anchor.lineno - 1,
             0,
             {
-                "virt_text": [[text, self.options.hl.virtual_status]],
+                "virt_text": existing + [new_chunk],
                 "virt_text_pos": "eol",
+                "hl_mode": "combine",
+                "right_gravity": False,
+                "conceal": '',
             }
         )
         self.canvas.present()

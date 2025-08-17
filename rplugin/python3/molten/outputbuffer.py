@@ -35,6 +35,7 @@ class OutputBuffer:
     display_virt_lines: Optional[DynamicPosition]
     extmark_namespace: int
     virt_text_id: Optional[int]
+    virt_text_status_id: Optional[int]
     displayed_status: OutputStatus
 
     options: MoltenOptions
@@ -52,6 +53,7 @@ class OutputBuffer:
         self.virt_hidden: bool = False
         self.extmark_namespace = extmark_namespace
         self.virt_text_id = None
+        self.virt_text_status_id = None
         self.displayed_status = OutputStatus.HOLD
 
         self.options = options
@@ -78,15 +80,20 @@ class OutputBuffer:
         match output.status:
             case OutputStatus.HOLD:
                 status = "* On Hold"
+                output.hl = self.options.hl.border_norm
             case OutputStatus.DONE:
                 if output.success:
-                    status = "✓ Done"
+                    status = "✓"
+                    output.hl = self.options.hl.border_succ
                 else:
-                    status = "✗ Failed"
+                    status = "✗"
+                    output.hl = self.options.hl.border_fail
             case OutputStatus.RUNNING:
-                status = "... Running"
+                status = "↻"
+                output.hl = self.options.hl.border_norm
             case OutputStatus.NEW:
                 status = ""
+                output.hl = self.options.hl.border_succ
             case _:
                 raise ValueError("bad output.status: %s" % output.status)
 
@@ -171,6 +178,8 @@ class OutputBuffer:
             # self.displayed_status = OutputStatus.NEW
             self.virt_hidden = True
 
+        if self.virt_text_status_id is not None:
+            self.nvim.funcs.nvim_buf_del_extmark(bufnr, self.extmark_namespace, self.virt_text_status_id)
         # clear any inline images, etc.
         redraw = False
         for chunk in self.output.chunks:
@@ -244,6 +253,33 @@ class OutputBuffer:
 
         lines.insert(0, self._get_header_text(self.output))
         return lines, len(lines) - 1 + virtual_lines
+
+    def show_status_on_header(self, anchor: Position) -> None:
+        if self.displayed_status == OutputStatus.DONE and self.virt_text_status_id is not None:
+            return
+
+        buf = self.nvim.buffers[anchor.bufno]
+
+        if self.virt_text_status_id is not None:
+            self.nvim.funcs.nvim_buf_del_extmark(
+                anchor.bufno, self.extmark_namespace, self.virt_text_status_id
+            )
+            self.virt_text_status_id = None
+
+        text = f"{self._get_header_text(self.output)}"
+        self.virt_text_status_id = buf.api.set_extmark(
+            self.extmark_namespace,
+            anchor.lineno,
+            0,
+            {
+                "virt_text": [[text, self.output.hl]],
+                "virt_text_pos": "inline",
+                "hl_mode": "combine",
+                "virt_text_win_col": 100 - len(text),
+            }
+        )
+        self.canvas.present()
+
 
     def show_virtual_output(self, anchor: Position) -> None:
         if self.virt_hidden:
